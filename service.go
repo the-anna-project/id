@@ -3,65 +3,101 @@
 package id
 
 import (
-	servicespec "github.com/the-anna-project/spec/service"
+	"github.com/the-anna-project/random"
 )
 
 const (
 	// Hex128 creates a new hexa decimal encoded, pseudo random, 128 bit hash.
 	Hex128 int = 16
-
 	// Hex512 creates a new hexa decimal encoded, pseudo random, 512 bit hash.
 	Hex512 int = 64
-
 	// Hex1024 creates a new hexa decimal encoded, pseudo random, 1024 bit hash.
 	Hex1024 int = 128
-
 	// Hex2048 creates a new hexa decimal encoded, pseudo random, 2048 bit hash.
 	Hex2048 int = 256
-
 	// Hex4096 creates a new hexa decimal encoded, pseudo random, 4096 bit hash.
 	Hex4096 int = 512
 )
 
-// New creates a new ID service.
-func New() servicespec.IDService {
-	return &service{
-		hashChars: "abcdef0123456789",
-		idType:    Hex128,
+// Config represents the configuration used to create a new ID service.
+type Config struct {
+	// Dependencies.
+
+	// RandomService represents a factory returning random numbers.
+	RandomService random.Service
+
+	// Settings.
+
+	// HashChars represents the characters used to create hashes.
+	HashChars string
+	// Length defines the ID bit size.
+	Length int
+}
+
+// DefaultConfig provides a default configuration to create a new ID service
+// by best effort.
+func DefaultConfig() Config {
+	var err error
+
+	var randomService random.Service
+	{
+		randomConfig := random.DefaultConfig()
+		randomService, err = random.New(randomConfig)
+		if err != nil {
+			panic(err)
+		}
 	}
+
+	newConfig := Config{
+		// Dependencies.
+		RandomService: randomService,
+
+		// Settings.
+		HashChars: "abcdef0123456789",
+		Length:    Hex128,
+	}
+
+	return newConfig
+}
+
+// New creates a new configured ID service.
+func New(config Config) (Service, error) {
+	// Dependencies.
+	if config.RandomService == nil {
+		return nil, maskAnyf(invalidConfigError, "random service must not be empty")
+	}
+
+	// Settings.
+	if config.HashChars == "" {
+		return nil, maskAnyf(invalidConfigError, "hash characters must not be empty")
+	}
+	if config.Length == 0 {
+		return nil, maskAnyf(invalidConfigError, "length must not be empty")
+	}
+
+	newService := &service{
+		// Dependencies.
+		randomService: config.RandomService,
+
+		// Settings.
+		hashChars: config.HashChars,
+		length:    config.Length,
+	}
+
+	return newService, nil
 }
 
 type service struct {
 	// Dependencies.
-
-	serviceCollection servicespec.ServiceCollection
+	randomService random.Service
 
 	// Settings.
-
-	// hashChars represents the characters used to create hashes.
 	hashChars string
-	idType    int
-	metadata  map[string]string
-}
-
-func (s *service) Boot() {
-	id, err := s.Service().ID().New()
-	if err != nil {
-		panic(err)
-	}
-	s.metadata = map[string]string{
-		"id":   id,
-		"name": "id",
-		"type": "service",
-	}
-}
-
-func (s *service) Metadata() map[string]string {
-	return s.metadata
+	length    int
 }
 
 func (s *service) New() (string, error) {
-	ID, err := s.WithType(s.idType)
+	ID, err := s.WithType(s.length)
 	if err != nil {
 		return "", maskAny(err)
 	}
@@ -69,19 +105,11 @@ func (s *service) New() (string, error) {
 	return ID, nil
 }
 
-func (s *service) Service() servicespec.ServiceCollection {
-	return s.serviceCollection
-}
-
-func (s *service) SetServiceCollection(sc servicespec.ServiceCollection) {
-	s.serviceCollection = sc
-}
-
-func (s *service) WithType(idType int) (string, error) {
-	n := int(idType)
+func (s *service) WithType(length int) (string, error) {
+	n := int(length)
 	max := len(s.hashChars)
 
-	newRandomNumbers, err := s.Service().Random().CreateNMax(n, max)
+	newRandomNumbers, err := s.randomService.CreateNMax(n, max)
 	if err != nil {
 		return "", maskAny(err)
 	}

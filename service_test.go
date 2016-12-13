@@ -7,33 +7,52 @@ import (
 	"testing"
 
 	"github.com/the-anna-project/random"
-	"github.com/the-anna-project/collection"
 )
 
-func Test_IDService_WithType_Error(t *testing.T) {
-	serviceCollection := collection.New()
-	serviceCollection.SetRandomService(random.New())
-	serviceCollection.Random().SetRandFactory(func(randReader io.Reader, max *big.Int) (n *big.Int, err error) {
-		return nil, maskAny(invalidConfigError)
-	})
+func Test_Service_WithType_Error(t *testing.T) {
+	var err error
 
-	idService := New()
-	idService.SetServiceCollection(serviceCollection)
+	var randomService random.Service
+	{
+		randomConfig := random.DefaultConfig()
+		randomConfig.RandFactory = func(randReader io.Reader, max *big.Int) (n *big.Int, err error) {
+			return nil, maskAny(invalidConfigError)
+		}
+		randomService, err = random.New(randomConfig)
+		if err != nil {
+			panic(err)
+		}
+	}
 
-	_, err := idService.WithType(Hex128)
+	var idService Service
+	{
+		idConfig := DefaultConfig()
+		idConfig.RandomService = randomService
+		idService, err = New(idConfig)
+		if err != nil {
+			t.Fatal("expected", nil, "got", err)
+		}
+	}
+
+	_, err = idService.WithType(Hex128)
 	if !IsInvalidConfig(err) {
 		t.Fatal("expected", nil, "got", err)
 	}
 }
 
-// Test_IDService_New checks that a generated ID is still unique after a
-// certain number of concurrent generations.
-func Test_IDService_New(t *testing.T) {
-	serviceCollection := collection.New()
-	serviceCollection.SetRandomService(random.New())
+// Test_Service_New checks that a generated ID is still unique after a certain
+// number of concurrent generations.
+func Test_Service_New(t *testing.T) {
+	var err error
 
-	idService := New()
-	idService.SetServiceCollection(serviceCollection)
+	var idService Service
+	{
+		idConfig := DefaultConfig()
+		idService, err = New(idConfig)
+		if err != nil {
+			t.Fatal("expected", nil, "got", err)
+		}
+	}
 
 	alreadySeen := map[string]struct{}{}
 
@@ -59,14 +78,19 @@ func Test_IDService_New(t *testing.T) {
 	wg.Wait()
 }
 
-// Test_IDService_WithType checks that a generated ID is still unique after a
+// Test_Service_WithType checks that a generated ID is still unique after a
 // certain number of concurrent generations.
-func Test_IDService_WithType(t *testing.T) {
-	serviceCollection := collection.New()
-	serviceCollection.SetRandomService(random.New())
+func Test_Service_WithType(t *testing.T) {
+	var err error
 
-	idService := New()
-	idService.SetServiceCollection(serviceCollection)
+	var idService Service
+	{
+		idConfig := DefaultConfig()
+		idService, err = New(idConfig)
+		if err != nil {
+			t.Fatal("expected", nil, "got", err)
+		}
+	}
 
 	alreadySeen := map[string]struct{}{}
 
