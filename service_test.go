@@ -14,11 +14,11 @@ func Test_Service_WithType_Error(t *testing.T) {
 
 	var randomService random.Service
 	{
-		randomConfig := random.DefaultConfig()
+		randomConfig := random.DefaultServiceConfig()
 		randomConfig.RandFactory = func(randReader io.Reader, max *big.Int) (n *big.Int, err error) {
 			return nil, maskAny(invalidConfigError)
 		}
-		randomService, err = random.New(randomConfig)
+		randomService, err = random.NewService(randomConfig)
 		if err != nil {
 			panic(err)
 		}
@@ -26,9 +26,9 @@ func Test_Service_WithType_Error(t *testing.T) {
 
 	var idService Service
 	{
-		idConfig := DefaultConfig()
+		idConfig := DefaultServiceConfig()
 		idConfig.RandomService = randomService
-		idService, err = New(idConfig)
+		idService, err = NewService(idConfig)
 		if err != nil {
 			t.Fatal("expected", nil, "got", err)
 		}
@@ -47,8 +47,8 @@ func Test_Service_New(t *testing.T) {
 
 	var idService Service
 	{
-		idConfig := DefaultConfig()
-		idService, err = New(idConfig)
+		idConfig := DefaultServiceConfig()
+		idService, err = NewService(idConfig)
 		if err != nil {
 			t.Fatal("expected", nil, "got", err)
 		}
@@ -85,8 +85,8 @@ func Test_Service_WithType(t *testing.T) {
 
 	var idService Service
 	{
-		idConfig := DefaultConfig()
-		idService, err = New(idConfig)
+		idConfig := DefaultServiceConfig()
+		idService, err = NewService(idConfig)
 		if err != nil {
 			t.Fatal("expected", nil, "got", err)
 		}

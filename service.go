@@ -1,5 +1,5 @@
-// Package id provides a simple ID generating service using pseudo random
-// strings.
+// Package id implements Service to provide simple ID generation using pseudo
+// random strings.
 package id
 
 import (
@@ -19,8 +19,8 @@ const (
 	Hex4096 int = 512
 )
 
-// Config represents the configuration used to create a new ID service.
-type Config struct {
+// ServiceConfig represents the configuration used to create a new ID service.
+type ServiceConfig struct {
 	// Dependencies.
 
 	// RandomService represents a factory returning random numbers.
@@ -34,21 +34,21 @@ type Config struct {
 	Length int
 }
 
-// DefaultConfig provides a default configuration to create a new ID service
-// by best effort.
-func DefaultConfig() Config {
+// DefaultServiceConfig provides a default configuration to create a new ID
+// service by best effort.
+func DefaultServiceConfig() ServiceConfig {
 	var err error
 
 	var randomService random.Service
 	{
-		randomConfig := random.DefaultConfig()
-		randomService, err = random.New(randomConfig)
+		randomConfig := random.DefaultServiceConfig()
+		randomService, err = random.NewService(randomConfig)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	newConfig := Config{
+	newConfig := ServiceConfig{
 		// Dependencies.
 		RandomService: randomService,
 
@@ -60,8 +60,8 @@ func DefaultConfig() Config {
 	return newConfig
 }
 
-// New creates a new configured ID service.
-func New(config Config) (Service, error) {
+// NewService creates a new configured ID service.
+func NewService(config ServiceConfig) (Service, error) {
 	// Dependencies.
 	if config.RandomService == nil {
 		return nil, maskAnyf(invalidConfigError, "random service must not be empty")
@@ -77,7 +77,7 @@ func New(config Config) (Service, error) {
 
 	newService := &service{
 		// Dependencies.
-		randomService: config.RandomService,
+		random: config.RandomService,
 
 		// Settings.
 		hashChars: config.HashChars,
@@ -89,7 +89,7 @@ func New(config Config) (Service, error) {
 
 type service struct {
 	// Dependencies.
-	randomService random.Service
+	random random.Service
 
 	// Settings.
 	hashChars string
@@ -109,7 +109,7 @@ func (s *service) WithType(length int) (string, error) {
 	n := int(length)
 	max := len(s.hashChars)
 
-	newRandomNumbers, err := s.randomService.CreateNMax(n, max)
+	newRandomNumbers, err := s.random.CreateNMax(n, max)
 	if err != nil {
 		return "", maskAny(err)
 	}
